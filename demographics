@@ -1,0 +1,71 @@
+#R
+
+#demographics
+data <- read.csv("/Users/elianasullivan/Documents/Minerva/last one/second semester/capstone/full clean data.csv")
+
+# used for percentage calculations
+install.packages("scales")
+library(scales)
+
+##GENDER
+# percent of women
+women <- (sum(data$SEX)/16039)
+percent(women)
+
+# percent of men
+men <- percent(1-women)
+print(men)
+
+##RACE
+# percent white
+white <- percent((sum(data$X._PRACE_1.0))/16039)
+
+# percent black
+black <- percent((sum(data$X._PRACE_2.0))/16039)
+
+# percent asian
+asian <- percent((sum(data$X._PRACE_3.0))/16039)
+
+# percent Native Hawaiian or other Pacific Islander 
+pislander <- percent((sum(data$X._PRACE_4.0))/16039)
+
+# percent American Indian or Alaskan Native
+native <- percent((sum(data$X._PRACE_5.0))/16039)
+
+# Other
+other <- percent((sum(data$X._PRACE_6.0))/16039)
+
+print(c(white, black, asian, pislander, native,other))
+
+# INCOMES
+table(data$INCOME2)
+income_counts <- c(537,660,1098,1528,2016,2578,2913,4709 )
+incomes <- percent(income_counts/sum(income_counts))
+print(incomes)
+
+# EDUCATIONS
+table(data$EDUCA)
+educ_counts <- c(12, 202, 571, 4496, 4412, 6346)
+educs <- percent(educ_counts/sum(educ_counts))
+print(educs)
+
+# AGE
+age <- hist(data$AGE,xlab = "Age",main = "Age Distribution in BRFSS 2010 Data", col = "#9EE533")
+min <- min(data$AGE)
+max <- max(data$AGE)
+average <- mean(data$AGE)
+print(c(min,max, average))
+
+# STATES
+#DC got deleted because it didn't do ANX/DEP variables
+DC <- percent((sum(data$X._STATE_11))/16039)
+Hawaii <- percent((sum(data$X._STATE_15))/16039)
+Nevada <- percent((sum(data$X._STATE_32))/16039)
+Vermont <- percent((sum(data$X._STATE_50))/16039)
+Wisconsin <- percent((sum(data$X._STATE_55))/16039)
+print(c(DC,Hawaii,Nevada,Vermont,Wisconsin))
+
+# percent that are overweight and smoke
+# mentioned in text
+print(percent((sum(data$X._BMI4CAT))/16039))
+print(percent((sum(data$SMOKE100))/16039))
