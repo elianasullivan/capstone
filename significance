@@ -1,0 +1,44 @@
+#this is written in R
+
+
+#### SIGNIFICANCE ####
+
+library(foreign)
+library(shiny)
+library(ggplot2)
+library(scales)
+library(glue)
+
+
+#the same for all, only run once
+data <- read.csv("/Users/elianasullivan/Documents/Minerva/last one/second semester/capstone/full clean data.csv")
+ace_score <- (data$ACEDEPRS+data$ACEDIVRC+data$ACEDRINK+data$ACEDRUGS+data$ACEHURT+data$ACEHVSEX+data$ACEPRISN+data$ACESWEAR+data$ACETOUCH+data$ACETTHEM+data$ACEPUNCH)
+ace_score[ace_score > 4] <- 4
+data_data <- cbind(data,ace_score)
+
+
+#need to run this once per health outcome
+# health outcomes : ADDEPEV,ASTHMA2, ADANXEV,X._RFBING4, X._BMI4CAT, X._SMOKER3
+
+#calculates the numerator and denominators
+num_counts <- c()
+den_counts <- c()
+for (i in 0:4) {
+  num_counts <- c(num_counts,sum(ace_data[ace_data$ace_score== i,][[as.name("X._BMI4CAT")]])) #this is how many within an ace score are yes
+  den_counts <- c(den_counts,(sum(ace_data$ace_score == i))) #this is how many of the ace score
+}
+
+#loops through all adjacent ACE scores
+for (i in 0:4){
+  z <- i+1
+  sig <- prop.test(c(num_counts[i],num_counts[z]), c(den_counts[i],den_counts[z]), alternative = "less",
+                   correct = TRUE, conf.level = 0.95)
+  prop_down <- num_counts[i]/den_counts[i]
+  prop_up <- num_counts[z]/den_counts[z]
+  
+  abs_diff <- (prop_up - prop_down)
+  relative_diff <- (prop_up/prop_down)
+  
+  print(as.data.frame(c(sig[3],abs_diff,relative_diff)))
+}
+
