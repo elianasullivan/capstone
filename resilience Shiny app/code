@@ -1,0 +1,132 @@
+#this is written in R
+library(shiny)
+
+ui <- fluidPage(
+  titlePanel("Resilience"),
+  h5("Select a resilience-building mechanism below to learn about it: "),
+  actionButton("pos", "Positive Appraisal Style & Executive Functioning Skills", style = "color: black; 
+               background-color: #049C9C;
+               height: 50px;
+               font-size:120%"),
+  actionButton("parent", "Positive parental figure(s)", style = "color: black; 
+               background-color: #D6D018;
+               height: 50px;
+               font-size:120%"), 
+  actionButton("health", "Treating Parental Mental Health Ailments", style = "color: black; 
+               background-color: #B54398;
+               height: 50px;
+               font-size:120%"),
+  actionButton("care", "Self-care and Routines", style = "color: black; 
+               background-color: #509C04;
+               height: 50px;
+               font-size:120%"),
+  actionButton("trauma", "Improving Trauma Understanding", style = "color: black; 
+               background-color: #E74C3C;
+               height: 50px;
+               font-size:120%"),
+  br(),
+  tags$em("These resilience factors were identified as modifiable and evidence-based by Traub & Boynton-Jarrett (2017) in their paper 'Modifiable Resilience Factors to Childhood Adversity for Clinical Pediatric Practice'."),
+  hr(),
+  htmlOutput("desc"),
+  br(),
+  textOutput("examp"),
+  br(),
+  uiOutput("pic"),
+  br(),
+  htmlOutput("citations")
+  
+  )
+
+server <- function(input, output){
+  v <- reactiveValues(type = NULL, text = NULL, examples= NULL, citations = NULL)
+  
+  # could put description, example, pictures
+  observeEvent(input$pos, {
+    v$type <- "pos"
+    v$text <- "What this is: a positive appraisal style means being optimistic and having a positive outlook about the future. Executive functioning is effectively being able to get things done. 
+    Executive functioning requires a combination of skills such as goal-setting, time management, organization, motivation, concentration, and memory."
+    v$examples <- "How to build this: cognitive behavioral therapy, mindfulness, physical exercise, and surrounding oneself with a supportive community can be effective for adults. 
+    Children can use similar methods such as playing on supportive sports teams, practicing mindfulness, or engaging in activities that promote executive functioning (e.g. running a 
+    lemonade stand, playing educational games, participating in a school sport or theatre, etc.)."
+  })
+  
+  observeEvent(input$parent, {
+    v$type <- "parent"
+    v$text <- "What this is: having positive parental figures often manifests in having caregivers who are attentive, caring, and present. Caregivers are extremely important because the home environment 
+    is core to how a child's stress response develops. More specifically, caregivers who are caring, attentive, and confident about their parenting are more likely to rear children with 
+    high resilience compared to those who are not. In fact, Collishaw et al. (2007) did a study in which they asked whether or not people had at least one caring parent during their childhood. 
+    Among those who did, 61.5% showed resilience in adulthood versus only 20% of those who did not have at least one caring parent."
+    v$examples <- "How to build this in children: if you are a parent do not underestimate the effect that your actions have on your child. Do what you can to treat them with kindness and 
+    help them feel safe. Seek support from doctors, support groups, or classes if you feel that you could improve your parenting."
+    v$citations <- "Cited: Collishaw, S., Pickles, A., Messer, J., Rutter, M., Shearer, C., & Maughan, B. (2007). Resilience to adult psychopathology following childhood maltreatment: Evidence from a community sample. Child Abuse & Neglect, 31(3), 211–229. https://doi.org/10.1016/j.chiabu.2007.02.004"
+  })
+  
+  observeEvent(input$health, {
+    v$type <- "health"
+    v$text <- "What this is: parental mental health ailments can have a negative effect on children. Savage-McGlynn et al. (2015) found that among 
+    infants who were exposed to maternal depression, 32.2% of them grew up to be resilient while 67.8% did not. One of the biggest predictors of 
+    resilience among those whose mothers were depressed was that their mothers felt positively about their parenting."
+    v$examples <- "How to build this in children: if you are a parent and are struggling with your mental health or a lack of confidence about your parenting, 
+    seek professional help and/or classes that can help you feel better, and as a result, raise a more resilient child. "
+    v$citations <- "Cited: Savage-McGlynn, E., Redshaw, M., Heron, J., Stein, A., Quigley, M. A., Evans, J., … Gray, R. (2015). Mechanisms of Resilience in Children of Mothers Who Self-Report with Depressive Symptoms in the First Postnatal Year. PLoS ONE, 10(11). https://doi.org/10.1371/journal.pone.0142898"
+  })  
+  
+  observeEvent(input$care, {
+    v$type <- "care"
+    v$text <- "What this is: self-care looks different for different people, but often involves sleeping, eating, exercising, and engaging with communities regularly. 
+    In a population-based health survey with over 13,000 participants, Nurius, Green, Logan-Greene, & Borja (2015) found that people with high ACE scores who had 
+    healthy sleep schedules and got regular exercise missed very little work and other activities as a result of mental health problems, while those who had both poor 
+    sleep and exercise habits and high ACE scores missed multiple days of work and activities. Routines are also very helpful for building healthy stress response systems 
+    and creating a sense of control and safety (Traub & Boynton-Jarrett, 2017)."
+    v$examples <- "How to build this: practice regular healthy eating, sleeping, and exercising. Even a little bit of any of these can be impactful. 
+    Establish routines, or at least small consistencies across days. If possible, establish systems to keep yourself accountable."
+    v$citations <- "Cited: Nurius, P. S., Green, S., Logan-Greene, P., & Borja, S. (2015). Life Course Pathways of Adverse Childhood Experiences Toward Adult Psychological Well-Being: A Stress Process Analysis. Child Abuse & Neglect, 45, 143–153. https://doi.org/10.1016/j.chiabu.2015.03.008 ;
+    Traub, F., & Boynton-Jarrett, R. (2017). Modifiable Resilience Factors to Childhood Adversity for Clinical Pediatric Practice. Pediatrics, 139(5), e20162569. https://doi.org/10.1542/peds.2016-2569"
+  })
+  
+  observeEvent(input$trauma, {
+    v$type <- "trauma"
+    v$text <- "What this is: learning about how toxic stress and trauma affects mental and physical well-being, as well as how to build resilience, is a valuable tool."
+    v$examples <- "How to build this: for children specifically, learning about their trauma and working through it in the company of their caregivers is particularly meaningful 
+    and valuable for building resilience (Traub & Boynton-Jarrett, 2017). This can also involve learning basic techniques to calm one’s potentially dysregulated stress response 
+    systems such as breathing and mindfulness. For adults, exploring resources pertaining to ACEs and toxic stress can be valuable in explaining the way that their body 
+    works and responds. This can potentially lift damaging blame, and help to start a healing process. Working through the past with a professional or support groups can 
+    also promote resilience."
+    v$citations <- "Cited: Traub, F., & Boynton-Jarrett, R. (2017). Modifiable Resilience Factors to Childhood Adversity for Clinical Pediatric Practice. Pediatrics, 139(5), e20162569. https://doi.org/10.1542/peds.2016-2569"
+  })
+  
+  output$desc <- renderText({
+    if (is.null(v$type)) return()
+    v$text
+  })
+  
+  output$examp <- renderText({
+    if (is.null(v$type)) return()
+    v$examples
+  })
+  
+  #deal with this in a minute
+  output$pic<-renderUI({
+    if (is.null(v$type)) return()
+    if(v$type=="pos")
+      img(src='executive.jpg', height = '550px')
+    else if (v$type=="parent")
+      img(src='parents.jpg', height = '500px')
+    else if (v$type=="health")
+      img(src='mental health.jpg', height = '500px', style= "position: center")
+    else if (v$type=="care")
+      img(src='routine.jpg', height = '500px')
+    else if (v$type=="trauma")
+      img(src='trauma.jpg', height = '500px')
+    
+  })
+  
+  output$citations <- renderUI({
+    if (is.null(v$citations)) return()
+    tags$em(v$citations)
+  })
+  
+  
+  }
+
+shinyApp(ui, server)
