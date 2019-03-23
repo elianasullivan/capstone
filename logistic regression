@@ -1,0 +1,35 @@
+#this is written in R
+
+install.packages("dplyr")
+install.packages("pscl")
+install.packages("ROCR")
+install.packages("tidyverse")
+install.packages("caret")
+install.packages("boot")
+
+library(dplyr)
+library(pscl)
+library(ROCR)
+library(tidyverse)
+library(caret)
+library(boot)
+
+#there is other good stuff, but mostly I want to use this for now
+#creating a train and test set
+data <- read.csv("/Users/elianasullivan/Documents/Minerva/last one/second semester/capstone/full clean data.csv")
+
+#variables : ADANXEV, ADDEPEV, ASTHMA2, X._BMI4CAT, DIABETE2, X._RFBING4, X._SMOKER3, CVDINFR4, CVDCRHD4, CVDSTRK3
+
+#make a basic logistic regression model
+model <- glm(ADANXEV ~ ACEDEPRS+ACEDRINK+ACEDRUGS+ACEPRISN+ACEDIVRC+ACEPUNCH+ACEHURT+ACESWEAR+ACETOUCH+ACETTHEM+ACESWEAR+ACEHVSEX,
+             family=binomial(link='logit'),data=data)
+
+summary(model)
+
+# make a data frame with coeffients, confidence intervals, and p-value
+coeffs <- exp(coef(model))
+confints <- exp(confint(model))
+pval <- summary(model)$coefficients[,4]
+final <- cbind(coeffs,confints,pval)
+summary(model)
+final
