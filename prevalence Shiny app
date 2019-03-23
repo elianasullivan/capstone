@@ -1,0 +1,136 @@
+#this is written in R
+
+#install.packages("scales")
+
+library(foreign)
+library(shiny)
+library(ggplot2)
+library(scales)
+library(glue)
+
+data <- read.csv("full clean data.csv")
+
+# adds a column for ACE score
+ace_score <- (data$ACEDEPRS+data$ACEDIVRC+data$ACEDRINK+data$ACEDRUGS+data$ACEHURT+data$ACEHVSEX+data$ACEPRISN+data$ACESWEAR+data$ACETOUCH+data$ACETTHEM+data$ACEPUNCH)
+ace_score[ace_score > 4] <- 4
+ace_data <- cbind(data,ace_score)
+
+# Define UI
+ui <- fluidPage(
+  titlePanel("Prevalence of Health Outcomes Across ACE Scores"),
+  
+  # Sidebar layout with a input and output definitions
+  sidebarLayout(
+    
+    # Inputs
+    sidebarPanel(
+      
+      # Select health outcome
+      selectInput(inputId = "outcome", 
+                  label = "Select a health outcome to display:",
+                  choices = c("Anxiety" = "ADANXEV",
+                              "Asthma" = "ASTHMA2",
+                              "Depression" = "ADDEPEV",
+                              "Binge drinking" = "X._RFBING4",
+                              "Overweight" = "X._BMI4CAT",
+                              "Smoking" = "X._SMOKER3"), 
+                  selected = "ADANXEV")
+      
+    ),
+    
+    # Outputs
+    mainPanel(
+      plotOutput(outputId = "barplot"),
+      tags$em(textOutput("description")),
+      br(),
+      textOutput("source"),
+      br(),
+      uiOutput("link"))
+  )
+)
+
+
+# Define server function
+server <- function(input, output) {
+  
+  # reactive function to calculate prevalence 
+  freq <- reactive({
+    freqs <- c()
+    for (i in 0:4) {
+      freqs <- c(freqs,sum(ace_data[ace_data$ace_score== i,][[as.name(input$outcome)]])/(sum(ace_data$ace_score == i)))
+    }
+    (freqs)
+  })
+  
+  # reactive, used in the text
+  names <- reactive({
+    if (input$outcome == "ADANXEV") return("Clinical Anxiety")
+    if (input$outcome == "ASTHMA2") return("Asthma")
+    if (input$outcome == "ADDEPEV") return("Clinical Depression")
+    if (input$outcome == "X._RFBING4") return("Binge Drinking")
+    if (input$outcome == "X._BMI4CAT") return("Being Overweight")
+    if (input$outcome == "X._SMOKER3") return("Smoking Cigarettes")
+  })
+  
+  # reactive, used in text 
+  descr_name_reactive <- reactive({
+    if (input$outcome == "ADANXEV") return("experience/have experienced clinical anxiety.")
+    if (input$outcome == "ASTHMA2") return("have asthma.")
+    if (input$outcome == "ADDEPEV") return("experience/have experienced clinical depression.")
+    if (input$outcome == "X._RFBING4") return("engage/have engaged in binge drinking.")
+    if (input$outcome == "X._BMI4CAT") return("are overweight.")
+    if (input$outcome == "X._SMOKER3") return("smoke/have smoked cigarettes.")
+    
+  })
+  
+  # prepares for creation of a bar chart
+  bar <- reactive({
+    bar <- data.frame(
+      group = (freq()),
+      value = c("0","1","2","3","4+"),
+      ace_labels= (percent(freq())))
+    return(bar)
+  })
+  
+  # creates barplot
+  output$barplot <- renderPlot({
+    #it doesn't know what data it's using I think because in ggplot we specify data
+    #the choices one just makes it work when it gets plugged in but it doesn't actually store it
+    
+    bar <- bar()
+    bar$value <- factor(bar$value, levels = bar$value[c(0:5)])
+    
+    bp<- ggplot(bar, aes(x=value, y=group, label = ace_labels))+
+      geom_bar(stat="identity", color = "black", fill = "maroon")+geom_text(size=5, position=position_stack(vjust=0.5), color = "white")
+    bp + ggtitle(glue("Prevalence of {names()} Across ACE Scores")) +
+      xlab("ACE Score") + ylab("Prevalence of Outcome") +
+      theme(plot.title = element_text(size = 18, face = "bold"))+
+      theme(axis.text=element_text(size=16),
+            axis.title.x=element_text(size=16),
+            axis.title.y=element_text(size=16))
+  })
+  
+  # Create description of plot
+  output$description <- renderText({
+    paste("The plot above shows the percent of people with a particular ACE score who",
+          descr_name_reactive(),
+          "This, for clarity, means that among the people with 0 ACEs,",
+          (bar()$ace_labels[1]),
+          "of them",
+          descr_name_reactive(),
+          "The same applies to the rest of the ACE scores.",
+          "Note that an ACE score is how many categories of adverse childhood experiences an individual endured between the ages of 0 and 18.")
+  })
+  
+  output$source <- renderText({
+    paste("This plot is made with data from the 2010 Behavioral Risk Factor Surveillance System (BRFSS) survey.",
+          "There are a total of 16,039 participants in this sample, all of whom answered questions about ACEs and demographics.")
+  })
+  
+  url <- a("2010 BRFSS Data", href="https://www.cdc.gov/brfss/annual_data/annual_2010.htm")
+  output$link <- renderUI({tagList("The full dataset and more information can be found here:", url)})
+}
+
+
+# Create a Shiny app object
+shinyApp(ui = ui, server = server)
