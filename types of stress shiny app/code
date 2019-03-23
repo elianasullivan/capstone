@@ -1,0 +1,81 @@
+#this is written in R
+library(shiny)
+
+ui <- fluidPage(
+  titlePanel("Types of Stress"),
+  h5("Select a type of stress below to learn about it: "),
+  actionButton("pos", "Positive Stress", style = "color: black; 
+               background-color: #82E0AA; font-size:120%"),
+  actionButton("tol", "Tolerable Stress", style = "color: black; 
+               background-color: #F9E79F; font-size:120%"), 
+  actionButton("tox", "Toxic Stress", style = "color: black; 
+               background-color: #E74C3C; font-size:120%"),
+  hr(),
+  htmlOutput("desc"),
+  br(),
+  textOutput("examp"),
+  br(),
+  uiOutput("pic"),
+  uiOutput("citations")
+  
+  )
+
+server <- function(input, output){
+  v <- reactiveValues(type = NULL, text = NULL, examples= NULL, citations = NULL)
+  
+  # outputs for positive stress
+  observeEvent(input$pos, {
+    v$type <- "positive"
+    v$text <- "Positive stress is characterized by a short and mild psychological reaction to a stressful event. The experience is often more 'positive' if there is someone supportive present \
+    to help proces and move past the stressful event."
+    v$examples <- "Examples: Going to an audition or interview, giving a presentation, getting an immunization, taking a test, making a large commitment, performing in front of a crowd"
+    v$citations <- "Description informed by Shonkoff, J. P., Garner, A. S., Dobbins, M. I., Garner, A. S., McGuinn, L., Pascoe, J., & Wood, D. L. (2012). The Lifelong Effects of Early Childhood Adversity and Toxic Stress. PEDIATRICS, 129(1), e232–e246. https://doi.org/10.1542/peds.2011-2663"
+  })
+  
+  # outputs for tolerable stress
+  observeEvent(input$tol, {
+    v$type <- "tolerable"
+    v$text <- "Tolerable stress is more severe than positive stress. It accompanies extreme and potentially traumatic events. The 'tolerability' often comes from having a supportive \
+    relationship that can minimize potentially long-lasting effects, so having such a relationship is important to this type of stress response."
+    v$examples <- "Examples: Experiencing a natural disaster, serious injury, death of a loved one, violent crime (all accompanied by a supportive relationship)"
+    v$citations <- "Description informed by Shonkoff, J. P., Garner, A. S., Dobbins, M. I., Garner, A. S., McGuinn, L., Pascoe, J., & Wood, D. L. (2012). The Lifelong Effects of Early Childhood Adversity and Toxic Stress. PEDIATRICS, 129(1), e232–e246. https://doi.org/10.1542/peds.2011-2663"
+  })
+  
+  # outputs for toxic stress
+  observeEvent(input$tox, {
+    v$type <- "toxic"
+    v$text <- "Toxic stress occurs when the body’s stress response systems are activated often and intensely especially in the absence of a supportive relationship. This type of stress response is \
+    called “toxic stress” because experiencing it can be ‘toxic’ and have long-lasting effects on the body and brain. This type of stress response is what is most commonly associated with adverse childhood experiences (ACEs)."
+    v$examples <- "Examples: Having an abusive or neglectful parent, parental substance abuse, abandonment, unstable housing (all often in the absence of a supportive relationship)"
+    v$citations <- "Description informed by Shonkoff, J. P., Garner, A. S., Dobbins, M. I., Garner, A. S., McGuinn, L., Pascoe, J., & Wood, D. L. (2012). The Lifelong Effects of Early Childhood Adversity and Toxic Stress. PEDIATRICS, 129(1), e232–e246. https://doi.org/10.1542/peds.2011-2663"
+  })  
+  
+  output$desc <- renderText({
+    if (is.null(v$type)) return()
+    v$text
+  })
+  
+  output$examp <- renderText({
+    if (is.null(v$type)) return()
+    v$examples
+  })
+  
+  # displays associated picture
+  output$pic<-renderUI({
+    if (is.null(v$type)) return()
+    if(v$type=="positive")
+      img(src='positive stress.jpg', height = '450px')
+    else if (v$type=="tolerable")
+      img(src='tolerable stress3.jpg', height = '500px')
+    else
+      img(src='toxic stress.jpg', height = '500px')
+  })
+  
+  output$citations <- renderUI({
+    if (is.null(v$type)) return()
+    tags$em(v$citations)
+  })
+  
+}
+
+shinyApp(ui, server)
