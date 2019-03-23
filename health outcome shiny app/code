@@ -1,0 +1,359 @@
+#this is written in R
+
+# install.packages("scales")
+# install.packages("reticulate")
+# install.packages("shiny")
+# install.packages("tidyverse")
+# install.packages("shinycssloaders")
+# devtools::install_github("rstudio/rsconnect", ref='737cd48', force = TRUE)
+
+
+library(foreign)
+library(shiny)
+library(ggplot2)
+library(reticulate)
+library(scales)
+library(tidyverse)
+library(shinycssloaders)
+
+# creates a virtual python environment so that it can run on the shiny.io website and not rely on a local python environment
+virtualenv_create(envname = "python_environment", python= "python3")
+virtualenv_install("python_environment", packages = c('tensorflow','keras', 'pandas','numpy','scipy','scikit-learn'),ignore_installed=TRUE)
+reticulate::use_virtualenv("python_environment", required = TRUE)
+
+
+# Define UI for the health predictor tool
+
+ui <- fluidPage(
+  titlePanel("Health Outcome Tool"),
+  print("When you are ready to calculate your results, click the blue 'update' button at the bottom of the panel.
+        It will work when the app has finished loading. Furthmore, note that 'ACE' stands for 'adverse childhood experience'."),
+  
+  # Sidebar layout with a input and output definitions
+  sidebarLayout(
+    
+    # Inputs
+    sidebarPanel(
+      print("Caution: this tool mentions abuse, trauma, and family dysfunction. It may not be suitable for children or people for whom this may be triggering."),
+      
+      # Select race
+      
+      h3("Health Outcome Selection", align = "center"),
+      
+      selectInput(inputId = "health_outcome", 
+                  label = "Select the health outcome of interest:",
+                  choices = c("Anxiety", 
+                              "Asthma",
+                              "Binge Drinking",
+                              "Diabetes",
+                              "Depression",
+                              "Heart Attack",
+                              "Heart Disease",
+                              "Stroke"), 
+                  selected = "Anxiety"),
+      
+      h3("Demographics and ACE Data", align = "center"),
+      
+      # Select race
+      selectInput(inputId = "race", 
+                  label = "Select your race:",
+                  choices = c("White"=1, 
+                              "Black"=2, 
+                              "Asian"=3, 
+                              "Native Hawaiian or other Pacific Islander"=4, 
+                              "American Indian or Alaskan Native"=5,
+                              "Other"=6), 
+                  selected = 1),
+      
+      # Select gender
+      selectInput(inputId = "gender", 
+                  label = "Select your gender:",
+                  choices = c("Male" = 0, 
+                              "Female" = 1), 
+                  selected = 1),
+      
+      #Select if vetran or not
+      checkboxInput(inputId = "vetran",
+                    label = "Check if you ever served on active duty in the United States Armed Forces"),
+      
+      # Mark all of the ACEs you have experiences
+      checkboxGroupInput(inputId = "aces",
+                         label = "Check all of the following that you experienced between the ages of 0 and 18:",
+                         choices = c( "Lived with someone who was depressed, mentally ill, or suicidal" = 1,
+                                      "Lived with someone who was a problem drinker or alcoholic"= 2,
+                                      "Lived with someone who used illegal street drugs or who abused prescription medications" = 3,
+                                      "Live with someone who served time or was sentenced to serve time in a prison, jail, or other correctional facility"= 4,
+                                      "Parents separated or divorced" = 4,
+                                      "Parents or adults in your home slapped, hit, kicked, punched or beat each other up" = 6,
+                                      "Parent or adult in your home hit, beat, kicked, or physically hurt you in any way" = 7,
+                                      "Parent or adult in your home swore at you, insulted you, or put you down" = 8,
+                                      "Someone at least 5 years older than you touched you sexually" = 9,
+                                      "Someone at least 5 years older than you tried to make you touch them sexually" =10,
+                                      "Someone at least 5 years older than you forced you to have sex" =11)),
+      
+      
+      #Input age
+      numericInput(inputId = "age",
+                   label = "How old are you?",
+                   value = 18,
+                   min = 18, 
+                   max = 100, 
+                   step = 1),
+      
+      # Select level of education
+      selectInput(inputId = "education",
+                  label = "Select the highest grade or year of school you have completed",
+                  choices =c("Never attended school or only kindergarten" = 1,
+                             "Grades 1 through 8 (Elementary)" = 2,
+                             "Grades 9 through 11 (Some high school)" = 3,
+                             "Grade 12 or GED (High school graduate)" = 4, 
+                             "College 1 year to 3 years (Some college or technical school)" = 5,
+                             "College 4 years or more (College graduate)" = 6)),
+      
+      # Select income level
+      selectInput(inputId = "income",
+                  label = "What is your annual household income (from all sources)?",
+                  choices = c("Less than $10,000" = 1,
+                              "Between $10,000 and $15,000" = 2, 
+                              "Between $15,000 and $20,000" = 3,
+                              "Between $20,000 and $25,000" = 4,
+                              "Between $25,000 and $35,000" = 5,
+                              "Between $35,000 and $50,000" = 6,
+                              "Between $50,000 and $75,000" = 7,
+                              "$75,000 or more" = 8)),
+      
+      submitButton("Update", icon("refresh"),width = "100%"),
+      helpText("Click the button above to run the model once you have entered your information.")
+      
+    ),
+    
+    # Outputs
+    mainPanel(
+      tabsetPanel(
+        tabPanel("Health Outcomes", br(), uiOutput(outputId = "nnet") %>% withSpinner(color="#680D5A", type = 5),
+                 br(),
+                 plotOutput(outputId = "bar")),
+        tabPanel("Resilience", br(), uiOutput("link")%>% withSpinner(color="#680D5A", type = 5)),
+        tabPanel("About This Tool", br(), uiOutput(outputId = "info") %>% withSpinner(color="#680D5A", type = 5))
+      )
+    )
+  )
+  )
+
+# Define server function
+server <- function(input, output) {
+  # Define reactive components
+  # These use the inputs to create vectors that are used in the neural net prediction
+  
+  # gives a readable error if non-number is inputted in the age section
+  numbers <- reactive({
+    validate(
+      need(is.numeric(input$age), "Please input your age (in numbers)")
+    )
+  })
+  
+  # aces reactive
+  aces_reactive <- reactive({
+    aces_list <- replicate(11, 0) 
+    aces_list[as.integer(input$aces)] = 1
+    return(aces_list)
+  })
+  
+  #vetran reactive
+  vetran_reactive <- reactive({
+    ifelse(input$vetran, vetran_value <- 1, vetran_value <- 0)
+    return(vetran_value)
+  })
+  
+  # race reactive
+  race_reactive <- reactive({
+    vec <- replicate(6, 0)
+    vec[(as.integer(input$race))]=1
+    return(vec)})
+  
+  # define the neural network model and python
+  source_python("neural net models.py")
+  py_run_file("neural net models.py")
+  
+  # identitifies which neural network is used
+  func <- reactive({
+    if (input$health_outcome == "Anxiety") {
+      return(predict_anxiety_nn)
+    }
+    if (input$health_outcome == "Asthma") {
+      return(predict_asthma_nn)
+    }
+    if (input$health_outcome == "Binge Drinking") {
+      return(predict_binge_drinking_nn)
+    }
+    if (input$health_outcome == "Diabetes") {
+      return(predict_diabetes_nn)
+    }
+    if (input$health_outcome == "Depression") {
+      return(predict_depression_nn)
+    }
+    if (input$health_outcome == "Heart Attack") {
+      return(predict_heart_attack_nn)
+    }
+    if (input$health_outcome == "Heart Disease") {
+      return(predict_heart_disease_nn)
+    }
+    if (input$health_outcome == "Stroke") {
+      return(predict_stroke_nn)
+    }
+  })
+  
+  # normalizes the age value to be between 0 and 1 for use in the neural networks 
+  age_reactive <- reactive({
+    age <- (input$age-18)/(99-18)
+    return(age)
+  })
+  
+  # normalizes the income value to be between 0 and 1 for use in the neural network
+  income_reactive <- reactive({
+    income <- ((as.numeric(input$income))-1)/(8-1)
+    return(income)
+    print()
+  })
+  
+  # normalizes the education value to be between 0 and 1 for use in the neural network
+  education_reactive <- reactive({
+    education <- ((as.numeric(input$education))-1)/(6-1)
+    return(education)
+  })
+  
+  
+  # prediction from neural net given inputs
+  score_reactive <- reactive({
+    # uses neural net to predict p(outcome) given the information
+    predictions = c(aces_reactive(),vetran_reactive(),age_reactive(),education_reactive(),income_reactive(),input$gender,race_reactive())
+    score <- (func()(predictions))
+    return((score))
+  })
+  
+  # prediction from neural net given same demographics but no ACEs
+  none_reactive <- reactive({
+    # uses neural net to predict p(outcome) given the same demographics but no ACEs
+    pred_none = c(replicate(11, 0),vetran_reactive(),age_reactive(),education_reactive(),income_reactive(),input$gender,race_reactive())
+    score_none <- (func()(pred_none))
+    score_none <- (score_none)
+    return(score_none)
+  })
+  
+  # make a reactive for yes with ACEs 
+  with_aces_reactive <- reactive({
+    x <- score_reactive()
+    if(0 <=x && x < 0.05){
+      return("very unlikely")
+    }
+    if(0.05 <=x && x < 0.25){
+      return("unlikely")
+    }
+    if(0.25 <=x && x < 0.75){
+      return("moderately likely")
+    }
+    if(0.75 <=x && x < 0.95){
+      return("likely")
+    }
+    if(0.95 <=x && x <= 1){
+      return("very likely")
+    }
+    
+  })
+  
+  # used to call the names of health outcomes
+  names_reactive <- reactive({
+    if (input$health_outcome == "Anxiety") {
+      return("have clinical anxiety")
+    }
+    if (input$health_outcome == "Asthma") {
+      return("have asthma")
+    }
+    if (input$health_outcome == "Binge Drinking") {
+      return("binge drink")
+    }
+    if (input$health_outcome == "Depression") {
+      return("have clinical depression")
+    }
+    if (input$health_outcome == "Diabetes") {
+      return("have diabetes")
+    }
+    if (input$health_outcome == "Heart Attack") {
+      return("have a heart attack")
+    }
+    if (input$health_outcome == "Heart Disease") {
+      return("have heart disease")
+    }
+    if (input$health_outcome == "Stroke") {
+      return("have a stroke")
+    }
+  })
+  
+  # create the output of the app
+  output$nnet <- renderUI({
+    
+    # gives a custom error message if a number is not entered in the age box
+    numbers() 
+    
+    paste("According to the model and given your information, people like you are",
+          with_aces_reactive(),
+          "to ",
+          paste(names_reactive(),".",sep=""),
+          "This does not mean that you will or will not",
+          names_reactive(),
+          "at some point, but the results can nonetheless be interesting and potentially used to prioritize preventative measures.")
+    
+  })
+  
+  # output a visualization 
+  output$bar <- renderPlot({
+    #this is for making the stacked visualization
+    viz <- data.frame(Type = c("Very Likely", "Likely","Moderately Likely", "Unlikely","Very Unlikely"), 
+                      Proportion = c(5, 20, 50, 20, 5))
+    viz <- viz %>% 
+      mutate(ace = "Anxitety")
+    
+    viz$Type <- factor(viz$Type, levels = viz$Type[c(0:5)])
+    
+    #sets all colors the same
+    colors <- replicate(5, "#FB8685")
+    list <- c("very unlikely", "unlikely","moderately likely", "likely","very likely")
+    
+    # changes the color for the corresponding likelihood cateogory
+    num <- match(with_aces_reactive(),list)
+    colors[num] = "#92D85B"
+    
+    #creates visualization
+    ggplot(viz, aes(x = ace, y = Proportion, fill = Type)) +
+      geom_bar(stat="identity") +
+      geom_col(color = "black", size = 1, fill = colors) +
+      #could prob just put in percent(number) instead of proportion + % and hopefully would work
+      geom_text(aes(label = paste0(Type)),
+                position = position_stack(vjust = 0.5), size = 5) +
+      scale_fill_brewer(palette = "Set2") +
+      theme_minimal(base_size = 14) +
+      theme(legend.position = "none", axis.text.x=element_blank(), plot.title = element_text(hjust = 0.5)) +
+      ggtitle(paste("Likelihood of", input$health_outcome, "Given Demographics and Selected ACEs"))+
+      ylab(NULL) +
+      xlab(NULL)
+  })
+  
+  # information about the app
+  output$info <- renderUI({
+    paste("This tool was developed using a series of neural networks trained on 16,039 observations from the 2010 Behavioral Risk Factor Surveillance System (BRFSS) dataset.
+          There is a separate neural network for each health outcome and each one has an accuracy of 80% or higher on unseen data (like that which you can enter).
+          That said, the models are imperfect, and are not always correct. Thus, the purpose of this tool is to explore how 
+          demographics and adverse childhood experiences may influence health outcomes, and to offer suggestions about how to build resilience to minimize risk. 
+          This is NOT medical advice however, and if you have any questions about your health and/or wellbeing please consult a healthcare professional.
+          Furthermore, none of the data that you enter here will be recorded or stored. If you have any questions or comments please email me, Eliana Sullivan, 
+          at eliana.sullivan23@gmail.com.")
+  })
+  
+  # a link to the resilience building shiny app
+  url <- a("clicking here.", href="https://elianasullivan.shinyapps.io/resilience/")
+  output$link <- renderUI({tagList("Explore mechanisms by which to build resilience and combat the effects of toxic stress on the brain and body by", url)})
+  }
+
+
+# Create a Shiny app object
+shinyApp(ui = ui, server = server)
